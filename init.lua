@@ -43,7 +43,7 @@ P.S. You can delete this when you're done too. It's your config now :)
 --  NOTE: Must happen before plugins are required (otherwise wrong leader will be used)
 vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
-
+vim.wo.relativenumber = true
 -- [[ Install `lazy.nvim` plugin manager ]]
 --    https://github.com/folke/lazy.nvim
 --    `:help lazy.nvim.txt` for more info
@@ -94,7 +94,6 @@ require('lazy').setup({
       'folke/neodev.nvim',
     },
   },
-
   {
     -- Autocompletion
     'hrsh7th/nvim-cmp',
@@ -110,9 +109,9 @@ require('lazy').setup({
       'rafamadriz/friendly-snippets',
     },
   },
-
   -- Useful plugin to show you pending keybinds.
   { 'folke/which-key.nvim', opts = {} },
+  { "catppuccin/nvim", name = "catppuccin", priority = 1000 },
   {
     -- Adds git related signs to the gutter, as well as utilities for managing changes
     'lewis6991/gitsigns.nvim',
@@ -151,16 +150,6 @@ require('lazy').setup({
       end,
     },
   },
-
-  {
-    -- Theme inspired by Atom
-    'navarasu/onedark.nvim',
-    priority = 1000,
-    config = function()
-      vim.cmd.colorscheme 'onedark'
-    end,
-  },
-
   {
     -- Set lualine as statusline
     'nvim-lualine/lualine.nvim',
@@ -168,7 +157,7 @@ require('lazy').setup({
     opts = {
       options = {
         icons_enabled = false,
-        theme = 'onedark',
+        theme = 'palenight',
         component_separators = '|',
         section_separators = '',
       },
@@ -186,36 +175,6 @@ require('lazy').setup({
 
   -- "gc" to comment visual regions/lines
   { 'numToStr/Comment.nvim', opts = {} },
-
-  -- Fuzzy Finder (files, lsp, etc)
-  {
-    'nvim-telescope/telescope.nvim',
-    branch = '0.1.x',
-    dependencies = {
-      'nvim-lua/plenary.nvim',
-      -- Fuzzy Finder Algorithm which requires local dependencies to be built.
-      -- Only load if `make` is available. Make sure you have the system
-      -- requirements installed.
-      {
-        'nvim-telescope/telescope-fzf-native.nvim',
-        -- NOTE: If you are having trouble with this installation,
-        --       refer to the README for telescope-fzf-native for more instructions.
-        build = 'make',
-        cond = function()
-          return vim.fn.executable 'make' == 1
-        end,
-      },
-    },
-  },
-
-  {
-    -- Highlight, edit, and navigate code
-    'nvim-treesitter/nvim-treesitter',
-    dependencies = {
-      'nvim-treesitter/nvim-treesitter-textobjects',
-    },
-    build = ':TSUpdate',
-  },
 
   -- NOTE: Next Step on Your Neovim Journey: Add/Configure additional "plugins" for kickstart
   --       These are some example plugins that I've included in the kickstart repository.
@@ -300,147 +259,6 @@ vim.api.nvim_create_autocmd('TextYankPost', {
   pattern = '*',
 })
 
--- [[ Configure Telescope ]]
--- See `:help telescope` and `:help telescope.setup()`
-require('telescope').setup {
-  defaults = {
-    mappings = {
-      i = {
-        ['<C-u>'] = false,
-        ['<C-d>'] = false,
-      },
-    },
-  },
-}
-
--- Enable telescope fzf native, if installed
-pcall(require('telescope').load_extension, 'fzf')
-
--- Telescope live_grep in git root
--- Function to find the git root directory based on the current buffer's path
-local function find_git_root()
-  -- Use the current buffer's path as the starting point for the git search
-  local current_file = vim.api.nvim_buf_get_name(0)
-  local current_dir
-  local cwd = vim.fn.getcwd()
-  -- If the buffer is not associated with a file, return nil
-  if current_file == "" then
-    current_dir = cwd
-  else
-    -- Extract the directory from the current file's path
-    current_dir = vim.fn.fnamemodify(current_file, ":h")
-  end
-
-  -- Find the Git root directory from the current file's path
-  local git_root = vim.fn.systemlist("git -C " .. vim.fn.escape(current_dir, " ") .. " rev-parse --show-toplevel")[1]
-  if vim.v.shell_error ~= 0 then
-    print("Not a git repository. Searching on current working directory")
-    return cwd
-  end
-  return git_root
-end
-
--- Custom live_grep function to search in git root
-local function live_grep_git_root()
-  local git_root = find_git_root()
-  if git_root then
-    require('telescope.builtin').live_grep({
-      search_dirs = {git_root},
-    })
-  end
-end
-
-vim.api.nvim_create_user_command('LiveGrepGitRoot', live_grep_git_root, {})
-
--- See `:help telescope.builtin`
-vim.keymap.set('n', '<leader>?', require('telescope.builtin').oldfiles, { desc = '[?] Find recently opened files' })
-vim.keymap.set('n', '<leader><space>', require('telescope.builtin').buffers, { desc = '[ ] Find existing buffers' })
-vim.keymap.set('n', '<leader>/', function()
-  -- You can pass additional configuration to telescope to change theme, layout, etc.
-  require('telescope.builtin').current_buffer_fuzzy_find(require('telescope.themes').get_dropdown {
-    winblend = 10,
-    previewer = false,
-  })
-end, { desc = '[/] Fuzzily search in current buffer' })
-
-vim.keymap.set('n', '<leader>gf', require('telescope.builtin').git_files, { desc = 'Search [G]it [F]iles' })
-vim.keymap.set('n', '<leader>sf', require('telescope.builtin').find_files, { desc = '[S]earch [F]iles' })
-vim.keymap.set('n', '<leader>sh', require('telescope.builtin').help_tags, { desc = '[S]earch [H]elp' })
-vim.keymap.set('n', '<leader>sw', require('telescope.builtin').grep_string, { desc = '[S]earch current [W]ord' })
-vim.keymap.set('n', '<leader>sg', require('telescope.builtin').live_grep, { desc = '[S]earch by [G]rep' })
-vim.keymap.set('n', '<leader>sG', ':LiveGrepGitRoot<cr>', { desc = '[S]earch by [G]rep on Git Root' })
-vim.keymap.set('n', '<leader>sd', require('telescope.builtin').diagnostics, { desc = '[S]earch [D]iagnostics' })
-vim.keymap.set('n', '<leader>sr', require('telescope.builtin').resume, { desc = '[S]earch [R]esume' })
-
--- [[ Configure Treesitter ]]
--- See `:help nvim-treesitter`
--- Defer Treesitter setup after first render to improve startup time of 'nvim {filename}'
-vim.defer_fn(function()
-  require('nvim-treesitter.configs').setup {
-    -- Add languages to be installed here that you want installed for treesitter
-    ensure_installed = { 'c', 'cpp', 'go', 'lua', 'python', 'rust', 'tsx', 'javascript', 'typescript', 'vimdoc', 'vim', 'bash' },
-
-    -- Autoinstall languages that are not installed. Defaults to false (but you can change for yourself!)
-    auto_install = false,
-
-    highlight = { enable = true },
-    indent = { enable = true },
-    incremental_selection = {
-      enable = true,
-      keymaps = {
-        init_selection = '<c-space>',
-        node_incremental = '<c-space>',
-        scope_incremental = '<c-s>',
-        node_decremental = '<M-space>',
-      },
-    },
-    textobjects = {
-      select = {
-        enable = true,
-        lookahead = true, -- Automatically jump forward to textobj, similar to targets.vim
-        keymaps = {
-          -- You can use the capture groups defined in textobjects.scm
-          ['aa'] = '@parameter.outer',
-          ['ia'] = '@parameter.inner',
-          ['af'] = '@function.outer',
-          ['if'] = '@function.inner',
-          ['ac'] = '@class.outer',
-          ['ic'] = '@class.inner',
-        },
-      },
-      move = {
-        enable = true,
-        set_jumps = true, -- whether to set jumps in the jumplist
-        goto_next_start = {
-          [']m'] = '@function.outer',
-          [']]'] = '@class.outer',
-        },
-        goto_next_end = {
-          [']M'] = '@function.outer',
-          [']['] = '@class.outer',
-        },
-        goto_previous_start = {
-          ['[m'] = '@function.outer',
-          ['[['] = '@class.outer',
-        },
-        goto_previous_end = {
-          ['[M'] = '@function.outer',
-          ['[]'] = '@class.outer',
-        },
-      },
-      swap = {
-        enable = true,
-        swap_next = {
-          ['<leader>a'] = '@parameter.inner',
-        },
-        swap_previous = {
-          ['<leader>A'] = '@parameter.inner',
-        },
-      },
-    },
-  }
-end, 0)
-
 -- [[ Configure LSP ]]
 --  This function gets run when an LSP connects to a particular buffer.
 local on_attach = function(_, bufnr)
@@ -485,6 +303,62 @@ local on_attach = function(_, bufnr)
     vim.lsp.buf.format()
   end, { desc = 'Format current buffer with LSP' })
 end
+
+-- Catppuccin config
+
+require("catppuccin").setup({
+  flavour = "mocha", -- latte, frappe, macchiato, mocha
+  background = { -- :h background
+    light = "latte",
+    dark = "mocha",
+  },
+  transparent_background = true, -- disables setting the background color.
+  show_end_of_buffer = false, -- shows the '~' characters after the end of buffers
+  term_colors = false, -- sets terminal colors (e.g. `g:terminal_color_0`)
+  dim_inactive = {
+    enabled = false, -- dims the background color of inactive window
+    shade = "dark",
+    percentage = 0.15, -- percentage of the shade to apply to the inactive window
+  },
+  no_italic = false, -- Force no italic
+  no_bold = false, -- Force no bold
+  no_underline = false, -- Force no underline
+  styles = { -- Handles the styles of general hi groups (see `:h highlight-args`):
+    comments = { "italic" }, -- Change the style of comments
+    conditionals = { "italic" },
+    loops = {"italic"},
+    functions = {"bold"},
+    keywords = {"bold"},
+    strings = {},
+    variables = {},
+    numbers = {},
+    booleans = {},
+    properties = {},
+    types = {},
+    operators = {},
+  },
+  color_overrides = {},
+  custom_highlights = function(colors)
+    return {
+      Comment = { fg = "#4d7cdb"},
+      LineNr = { fg = colors.overlay0 },
+    }
+  end,
+  integrations = {
+    cmp = true,
+    gitsigns = false,
+    nvimtree = false,
+    treesitter = true,
+    notify = false,
+    mini = false,
+    -- For more plugins integrations please scroll down (https://github.com/catppuccin/nvim#integrations)
+  },
+})
+
+
+-- Setting Catppuccin as default colorscheme
+
+vim.cmd.colorscheme "catppuccin"
 
 -- document existing key chains
 require('which-key').register {
